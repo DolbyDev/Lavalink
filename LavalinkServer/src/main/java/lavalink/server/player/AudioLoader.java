@@ -41,7 +41,7 @@ public class AudioLoader implements AudioLoadResultHandler {
 
     private static final Logger log = LoggerFactory.getLogger(AudioLoader.class);
     private static final LoadResult NO_MATCHES = new LoadResult(ResultStatus.NO_MATCHES, Collections.emptyList(),
-            null, null);
+            null, null, null, null, null);
 
     private final AudioPlayerManager audioPlayerManager;
 
@@ -69,7 +69,7 @@ public class AudioLoader implements AudioLoadResultHandler {
         log.info("Loaded track " + audioTrack.getInfo().title);
         ArrayList<AudioTrack> result = new ArrayList<>();
         result.add(audioTrack);
-        this.loadResult.complete(new LoadResult(ResultStatus.TRACK_LOADED, result, null, null));
+        this.loadResult.complete(new LoadResult(ResultStatus.TRACK_LOADED, result, null, null, null, null, null));
     }
 
     @Override
@@ -77,16 +77,27 @@ public class AudioLoader implements AudioLoadResultHandler {
         log.info("Loaded playlist " + audioPlaylist.getName());
 
         String playlistName = null;
+        String playlistAuthor = null;
+        String playlistAuthorUrl = null;
+        String playlistImage = null;
         Integer selectedTrack = null;
         if (!audioPlaylist.isSearchResult()) {
             playlistName = audioPlaylist.getName();
+            playlistAuthor = audioPlaylist.getAuthor();
+            playlistAuthorUrl = audioPlaylist.getAuthorUrl();
+            playlistImage = audioPlaylist.getImage();
             selectedTrack = audioPlaylist.getTracks().indexOf(audioPlaylist.getSelectedTrack());
         }
 
         ResultStatus status = audioPlaylist.isSearchResult() ? ResultStatus.SEARCH_RESULT : ResultStatus.PLAYLIST_LOADED;
         List<AudioTrack> loadedItems = audioPlaylist.getTracks();
-
-        this.loadResult.complete(new LoadResult(status, loadedItems, playlistName, selectedTrack));
+        this.loadResult.complete(new LoadResult(status,
+                loadedItems,
+                playlistName,
+                playlistAuthor,
+                playlistAuthorUrl,
+                playlistImage,
+                selectedTrack));
     }
 
     @Override

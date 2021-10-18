@@ -71,7 +71,7 @@ public class AudioLoaderRestHandler {
                 .put("identifier", trackInfo.identifier)
                 .put("uri", trackInfo.uri)
                 .put("isStream", trackInfo.isStream)
-                .put("artworkUrl", trackInfo.artworkUrl)
+                .put("artworkUrl", !trackInfo.artworkUrl.isEmpty() ? trackInfo.artworkUrl : null)
                 .put("isSeekable", audioTrack.isSeekable())
                 .put("position", audioTrack.getPosition())
                 .put("sourceName", audioTrack.getSourceManager() == null ? null : audioTrack.getSourceManager().getSourceName());
@@ -96,6 +96,9 @@ public class AudioLoaderRestHandler {
         });
 
         playlist.put("name", result.playlistName);
+        playlist.put("author", result.playlistAuthor);
+        playlist.put("authorUrl", result.playlistAuthorUrl);
+        playlist.put("image", result.playlistImage);
         playlist.put("selectedTrack", result.selectedTrack);
 
         json.put("playlistInfo", playlist);
