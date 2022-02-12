@@ -34,9 +34,11 @@ class ServerConfig {
     var bufferDurationMs: Int? = null
     var frameBufferDurationMs: Int? = null
     var youtubePlaylistLoadLimit: Int? = null
-    var playerUpdateInterval: Int? = 5
+    var playerUpdateInterval: Int = 5
     var isGcWarnings = true
     var isYoutubeSearchEnabled = true
     var isSoundcloudSearchEnabled = true
     var ratelimit: RateLimitConfig? = null
+    var youtubeConfig: YoutubeConfig? = null
+    var httpConfig: HttpConfig? = null
 }

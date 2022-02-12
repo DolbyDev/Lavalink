@@ -11,6 +11,8 @@ The Java client has support for JDA, but can also be adapted to work with other 
 * The `error` string on the `TrackExceptionEvent` has been deprecated and replaced by 
 the `exception` object following the same structure as the `LOAD_FAILED` error on [`/loadtracks`](#rest-api)
 * Added the `connected` boolean to player updates.
+* Added source name to REST api track objects
+* Clients are now requested to make their name known during handshake
 
 ## Significant changes v2.0 -> v3.0 
 * The response of `/loadtracks` has been completely changed (again since the initial v3.0 pre-release).
@@ -375,8 +377,7 @@ See the [Discord docs](https://discordapp.com/developers/docs/topics/opcodes-and
 ### Track Loading API
 The REST api is used to resolve audio tracks for use with the `play` op. 
 ```
-GET /loadtracks?identifier=dQw4w9WgXcQ HTTP/1.1
-Host: localhost:8080
+GET /loadtracks?identifier=dQw4w9WgXcQ
 Authorization: youshallnotpass
 ```
 
@@ -404,7 +405,7 @@ Response:
 }
 ```
 
-If the identifier leads to a playlist, `playlistInfo` will contain two properties, `name` and `selectedTrack`
+If the identifier leads to a playlist, `playlistInfo` will contain two properties, `name` and `selectedTrack`(-1 if no selectedTrack found)
 ```json
 {
   "loadType": "PLAYLIST_LOADED",
@@ -445,8 +446,7 @@ A severity level of `COMMON` indicates that the error is non-fatal and that the 
 
 Decode a single track into its info
 ```
-GET /decodetrack?track=QAAAjQIAJVJpY2sgQXN0bGV5IC0gTmV2ZXIgR29ubmEgR2l2ZSBZb3UgVXAADlJpY2tBc3RsZXlWRVZPAAAAAAADPCAAC2RRdzR3OVdnWGNRAAEAK2h0dHBzOi8vd3d3LnlvdXR1YmUuY29tL3dhdGNoP3Y9ZFF3NHc5V2dYY1EAB3lvdXR1YmUAAAAAAAAAAA== HTTP/1.1
-Host: localhost:8080
+GET /decodetrack?track=QAAAjQIAJVJpY2sgQXN0bGV5IC0gTmV2ZXIgR29ubmEgR2l2ZSBZb3UgVXAADlJpY2tBc3RsZXlWRVZPAAAAAAADPCAAC2RRdzR3OVdnWGNRAAEAK2h0dHBzOi8vd3d3LnlvdXR1YmUuY29tL3dhdGNoP3Y9ZFF3NHc5V2dYY1EAB3lvdXR1YmUAAAAAAAAAAA==
 Authorization: youshallnotpass
 ```
 
@@ -467,8 +467,7 @@ Response:
 
 Decode multiple tracks into info their info
 ```
-POST /decodetracks HTTP/1.1
-Host: localhost:8080
+POST /decodetracks
 Authorization: youshallnotpass
 ```
 
@@ -502,15 +501,35 @@ Response:
 ```
 ---
 
+### Get list of plugins
+Request information about the plugins running on Lavalink, if any.
+```
+GET /plugins
+Authorization: youshallnotpass
+```
+
+Response:
+```yaml
+[
+  {
+    "name": "some-plugin",
+    "version": "1.0.0"
+  },
+  {
+    "name": "foo-plugin",
+    "version": "1.2.3"
+  }
+]
+```
+
 ### RoutePlanner API
 
-Additionally there are a few REST endpoints for the ip rotation extension
+Additionally, there are a few REST endpoints for the ip rotation extension
 
 #### Get RoutePlanner status
 
 ```
 GET /routeplanner/status
-Host: localhost:8080
 Authorization: youshallnotpass
 ```
 
@@ -649,7 +668,7 @@ queue is then emptied and the events are then replayed.
 ```
 
 # Common pitfalls
-Admidtedly Lavalink isn't inherently the most intuitive thing ever, and people tend to run into the same mistakes over again. Please double check the following if you run into problems developing your client and you can't connect to a voice channel or play audio:
+Admittedly Lavalink isn't inherently the most intuitive thing ever, and people tend to run into the same mistakes over again. Please double check the following if you run into problems developing your client and you can't connect to a voice channel or play audio:
 
 1. Check that you are forwarding sendWS events to **Discord**.
 2. Check that you are intercepting **VOICE_SERVER_UPDATE**s to **Lavalink**. Do not edit the event object from Discord.
