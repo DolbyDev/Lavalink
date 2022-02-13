@@ -27,14 +27,14 @@ import io.undertow.websockets.core.WebSocketCallback
 import io.undertow.websockets.core.WebSocketChannel
 import io.undertow.websockets.core.WebSockets
 import io.undertow.websockets.jsr.UndertowSession
-import lavalink.server.player.Player
 import lavalink.server.config.ServerConfig
+import lavalink.server.player.Player
 import moe.kyokobot.koe.KoeClient
 import moe.kyokobot.koe.KoeEventAdapter
 import moe.kyokobot.koe.VoiceConnection
-import moe.kyokobot.koe.VoiceServerInfo
 import org.json.JSONObject
 import org.slf4j.LoggerFactory
+import org.springframework.web.socket.CloseStatus
 import org.springframework.web.socket.WebSocketSession
 import org.springframework.web.socket.adapter.standard.StandardWebSocketSession
 import java.net.InetSocketAddress
@@ -46,13 +46,14 @@ import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
 
-class SocketContext internal constructor(
-        val audioPlayerManager: AudioPlayerManager,
-        val serverConfig: ServerConfig,
-        private var session: WebSocketSession,
-        private val socketServer: SocketServer,
-        val userId: String,
-        private val koe: KoeClient
+class SocketContext(
+    val audioPlayerManager: AudioPlayerManager,
+    val serverConfig: ServerConfig,
+    private var session: WebSocketSession,
+    private val socketServer: SocketServer,
+    val userId: String,
+    val koe: KoeClient
+
 ) {
 
     companion object {
@@ -60,7 +61,7 @@ class SocketContext internal constructor(
     }
 
     //guildId <-> Player
-    val players = ConcurrentHashMap<String, Player>()
+    private val players = ConcurrentHashMap<Long, Player>()
 
     @Volatile
     var sessionPaused = false
@@ -92,25 +93,26 @@ class SocketContext internal constructor(
         }
     }
 
-    internal fun getPlayer(guildId: Long) = getPlayer(guildId.toString())
+    fun getPlayer(guildId: String) = getPlayer(guildId.toLong())
 
-    internal fun getPlayer(guildId: String) = players.computeIfAbsent(guildId) {
-        Player(this, guildId, audioPlayerManager, serverConfig)
+    fun getPlayer(guildId: Long) = players.computeIfAbsent(guildId) {
+        val player = Player(this, guildId, audioPlayerManager, serverConfig)
+        player
     }
 
-    internal fun getPlayers(): Map<String, Player> {
-        return players
+    fun getPlayers(): Map<Long, Player> {
+        return players.toMap()
     }
 
     /**
      * Gets or creates a voice connection
      */
     fun getVoiceConnection(player: Player): VoiceConnection {
-        val guildId = player.guildId.toLong()
+        val guildId = player.guildId
         var conn = koe.getConnection(guildId)
         if (conn == null) {
             conn = koe.createConnection(guildId)
-            conn.registerListener(EventHandler(player))
+            conn.registerListener(WsEventHandler(player))
         }
         return conn
     }
@@ -118,8 +120,11 @@ class SocketContext internal constructor(
     /**
      * Disposes of a voice connection
      */
-    fun destroy(guild: Long) {
-        players.remove(guild.toString())?.stop()
+    fun destroyPlayer(guild: Long) {
+        val player = players.remove(guild)
+        if (player != null) {
+            player.destroy()
+        }
         koe.destroyConnection(guild)
     }
 
@@ -136,6 +141,7 @@ class SocketContext internal constructor(
     fun send(payload: JSONObject) = send(payload.toString())
 
     private fun send(payload: String) {
+
         if (sessionPaused) {
             resumeEventQueue.add(payload)
             return
@@ -145,15 +151,15 @@ class SocketContext internal constructor(
 
         val undertowSession = (session as StandardWebSocketSession).nativeSession as UndertowSession
         WebSockets.sendText(payload, undertowSession.webSocketChannel,
-                object : WebSocketCallback<Void> {
-                    override fun complete(channel: WebSocketChannel, context: Void?) {
-                        log.trace("Sent {}", payload)
-                    }
+            object : WebSocketCallback<Void> {
+                override fun complete(channel: WebSocketChannel, context: Void?) {
+                    log.trace("Sent {}", payload)
+                }
 
-                    override fun onError(channel: WebSocketChannel, context: Void?, throwable: Throwable) {
-                        log.error("Error", throwable)
-                    }
-                })
+                override fun onError(channel: WebSocketChannel, context: Void?, throwable: Throwable) {
+                    log.error("Error", throwable)
+                }
+            })
     }
 
     /**
@@ -178,16 +184,30 @@ class SocketContext internal constructor(
         log.info("Shutting down " + playingPlayers.size + " playing players.")
         executor.shutdown()
         playerUpdateService.shutdown()
-        players.values.forEach(Player::stop)
+        players.values.forEach {
+            this.destroyPlayer(it.guildId)
+        }
         koe.close()
     }
 
-    private inner class EventHandler(private val player: Player) : KoeEventAdapter() {
+    fun closeWebSocket(closeCode: Int, reason: String?) {
+        session.close(CloseStatus(closeCode, reason))
+    }
+
+    fun closeWebSocket(closeCode: Int) {
+        closeWebSocket(closeCode, null)
+    }
+
+    fun closeWebSocket() {
+        session.close()
+    }
+
+    private inner class WsEventHandler(private val player: Player) : KoeEventAdapter() {
         override fun gatewayClosed(code: Int, reason: String?, byRemote: Boolean) {
             val out = JSONObject()
             out.put("op", "event")
             out.put("type", "WebSocketClosedEvent")
-            out.put("guildId", player.guildId)
+            out.put("guildId", player.guildId.toString())
             out.put("reason", reason ?: "")
             out.put("code", code)
             out.put("byRemote", byRemote)

@@ -48,15 +48,16 @@ public class Player extends AudioEventAdapter {
     private static final Logger log = LoggerFactory.getLogger(Player.class);
 
     private final SocketContext socketContext;
-    private final String guildId;
+    private final long guildId;
     private final ServerConfig serverConfig;
     private final AudioPlayer player;
     private final AudioLossCounter audioLossCounter = new AudioLossCounter();
     private AudioFrame lastFrame = null;
     private FilterChain filters;
     private ScheduledFuture<?> myFuture = null;
+    private boolean endMarkerHit = false;
 
-    public Player(SocketContext socketContext, String guildId, AudioPlayerManager audioPlayerManager, ServerConfig serverConfig) {
+    public Player(SocketContext socketContext, long guildId, AudioPlayerManager audioPlayerManager, ServerConfig serverConfig) {
         this.socketContext = socketContext;
         this.guildId = guildId;
         this.serverConfig = serverConfig;
@@ -75,13 +76,26 @@ public class Player extends AudioEventAdapter {
         player.stopTrack();
     }
 
+    public void destroy() {
+        player.destroy();
+    }
+
     public void setPause(boolean b) {
         player.setPaused(b);
     }
 
-    public String getGuildId() {
+    public AudioPlayer getAudioPlayer() {
+        return player;
+    }
+
+    public AudioTrack getTrack() {
+        return player.getPlayingTrack();
+    }
+
+    public long getGuildId() {
         return guildId;
     }
+
 
     public void seekTo(long position) {
         AudioTrack track = player.getPlayingTrack();
@@ -93,6 +107,14 @@ public class Player extends AudioEventAdapter {
 
     public void setVolume(int volume) {
         player.setVolume(volume);
+    }
+
+    public void setEndMarkerHit(boolean hit) {
+        this.endMarkerHit = hit;
+    }
+
+    public boolean getEndMarkerHit() {
+        return this.endMarkerHit;
     }
 
     public JSONObject getState() {

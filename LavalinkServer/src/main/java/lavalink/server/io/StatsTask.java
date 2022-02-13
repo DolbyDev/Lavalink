@@ -23,15 +23,24 @@
 package lavalink.server.io;
 
 import lavalink.server.Launcher;
+import lavalink.server.player.AudioLoaderRestHandler;
 import lavalink.server.player.AudioLossCounter;
 import lavalink.server.player.Player;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.ResponseBody;
 import oshi.SystemInfo;
 import oshi.hardware.HardwareAbstractionLayer;
 import oshi.software.os.OSProcess;
 import oshi.software.os.OperatingSystem;
+
+import javax.servlet.http.HttpServletRequest;
+import java.io.IOException;
 
 public class StatsTask implements Runnable {
 
@@ -59,8 +68,7 @@ public class StatsTask implements Runnable {
         }
     }
 
-    private void sendStats() {
-        if (context.getSessionPaused()) return;
+    private JSONObject getStats() {
 
         JSONObject out = new JSONObject();
 
@@ -126,8 +134,13 @@ public class StatsTask implements Runnable {
             frames.put("deficit", totalDeficit / players);
             out.put("frameStats", frames);
         }
+        return out;
+    }
 
-        context.send(out);
+    private void sendStats() {
+        if (context.getSessionPaused()) return;
+
+        context.send(getStats());
     }
 
     private double uptime = 0;
